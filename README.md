@@ -8,6 +8,9 @@ Python with pygame-ce. The story and manual are in Korean.
 
 Tap or click the screen once to start; sound begins after the first tap.
 
+**Phone tip:** browsers keep their address bar on screen. For a full-screen game, open the
+mobile link, choose **Share → Add to Home Screen**, then start the game from the new icon.
+
 ## Controls
 
 | Key | Action |

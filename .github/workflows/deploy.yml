@@ -52,6 +52,10 @@ jobs:
           mkdir -p site/mobile
           cp -r game/build/web/. site/
           cp -r mobile_build/retrace/build/web/. site/mobile/
+          # Phone support: home-screen app (no address bar) + iPhone silent-switch audio fix
+          cp web/mobile/* site/mobile/
+          python web/inject_head.py site/mobile/index.html --homescreen
+          python web/inject_head.py site/index.html
 
       - uses: actions/upload-pages-artifact@v3
         with:
