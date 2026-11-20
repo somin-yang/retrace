@@ -2,6 +2,8 @@
 #   https://somin-yang.github.io/retrace/         PC browser (keyboard, 960x720)
 #   https://somin-yang.github.io/retrace/mobile/  phone (touch controls, 1440x720)
 # Both are built from the same source; the mobile build only adds game/mobile.flag.
+# --no_opt: keep our stereo OGG files as they are. pygbag's asset optimizer would
+# re-encode them to mono 80 kbps, which collapses the music's stereo reverb.
 name: Build & Deploy to GitHub Pages
 
 on:
@@ -35,7 +37,7 @@ jobs:
         run: pip install pygbag==0.9.3
 
       - name: Build PC web version
-        run: python -m pygbag --build --title "RE:TRACE" --width 960 --height 720 game
+        run: python -m pygbag --build --no_opt --title "RE:TRACE" --width 960 --height 720 game
 
       - name: Build mobile web version
         run: |
@@ -43,7 +45,7 @@ jobs:
           cp -r game mobile_build/retrace
           rm -rf mobile_build/retrace/build
           touch mobile_build/retrace/mobile.flag
-          python -m pygbag --build --title "RE:TRACE Mobile" --width 1440 --height 720 mobile_build/retrace
+          python -m pygbag --build --no_opt --title "RE:TRACE Mobile" --width 1440 --height 720 mobile_build/retrace
 
       - name: Assemble site
         run: |
