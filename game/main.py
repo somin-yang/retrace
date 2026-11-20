@@ -99,12 +99,16 @@ LIFT_VIEW, LIFT_DISPLAY = pygame.Rect(40, 34, 880, 686), pygame.Rect(751, 68, 13
 # The PC web build and desktop Python keep the original 960x720 screen.
 MOBILE = WEB and (ASSETS.parent / "mobile.flag").is_file()
 SIDE = 240 if MOBILE else 0
+WEB_AUDIO_BUFFER = 2048  # raise to 4096 if music still breaks up on slow devices
 
 
 def initialize(start_floor="B6"):
     global window, screen, clock, fonts, images, sprites, echoes, faded
     global sounds, records, ui_tick, lift_panels, lever_image
-    pygame.mixer.pre_init(44100, -16, 2, 512)
+    # Audio buffer in samples. 512 (11.6 ms) is fine for desktop Python, but in the
+    # browser the WebAssembly frame can take longer than that and the sound runs dry
+    # (stutters). A bigger buffer adds ~46 ms delay to sound effects but plays smoothly.
+    pygame.mixer.pre_init(44100, -16, 2, WEB_AUDIO_BUFFER if WEB else 512)
     pygame.init()
     if WEB:
         # In the browser the page scales the canvas; render at native size.
