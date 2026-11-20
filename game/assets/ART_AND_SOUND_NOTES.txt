@@ -1,0 +1,70 @@
+RE:TRACE Prototype 9 — additional changes
+
+B6/B5/B4/B3 backgrounds were edited with built-in image generation. Exact
+camera, geometry, device positions, silhouettes and lighting were constrained.
+The additions are accumulated dust, old water/rust trails below their sources,
+scuffs, papers and fallen plaster clustered around plausible origins. B6 has
+the heaviest damage, B5 clear abandonment, B4 less damage with neglected work
+areas, and B3 modest wear. The accepted B2 and B1 artwork is unchanged.
+The full per-floor prompt text is in ART_EDIT_PROMPTS.md in the project root.
+
+sfx_lever_reset.wav reuses this game's original synthesized lever clunk with a
+75 ms lead so it follows the sensor beep. It plays only on an actual on-to-off
+change, caused by either B3 room door. The short original sensor beep is made
+by the existing make_sound function at initialization. Staying on the sensor
+never repeats either cue. Active echoes use the quieter replay volume.
+The optional offline renderer includes the delayed lever cue for rebuilding.
+
+The original Prototype 8 provenance and sound/font credits follow:
+
+RE:TRACE Prototype 8 — asset and authorship notes
+
+The user established the project concept, selected the visual/music direction,
+designed and reviewed puzzles collaboratively, and supplied repeated playtest
+feedback. The assistant implemented this revision, edited the artwork with
+built-in image generation, and arranged/rendered the music and effects.
+
+ROOM ART
+Six existing backgrounds were edited, preserving framing, elevated frontal
+camera, every wall/device/doorway/cable position and collision geometry.
+The common instruction was: remove orphan glossy floor reflection streaks,
+keep only short localized illumination attributable to visible lamps/devices,
+use matte readable grey floors, and keep early elevator interiors dim.
+No characters, labels, new devices, obstacles or room redesigns were requested.
+
+Per-floor edit instructions:
+B6: heaviest neglect, peeling plaster, old leaks, grime, existing rubble; dim
+    desaturated amber fixtures, preserve the luminous blue observation window.
+B5: pronounced dust/rust/staining and peeling paint; softer amber fixtures;
+    remove both long orange floor stripes and retain the existing clutter.
+B4: moderate grime/scuffs and mild rust; muted amber; remove the unsupported
+    right-wall glow and all floor streaks across/below the partitions.
+B3: maintained equipment with residual old wall-base wear; white fixtures;
+    remove long white streaks, especially below the archive shutters.
+B2: clean operational room, repaired peeling paint, very little grime;
+    steady white fixtures, no streaks below the service enclosure.
+B1: nearly spotless pale clinical room; matte floor, no disconnected bright
+    patches. The game supplies the final warm doorway light dynamically.
+
+b1_gate_panels.png is a separate texture edit of elevator.png: neutral matte
+silver leaf surfaces with the original geometry, minus orange/blue reflections.
+It is used only for internal B1 shutters; the cinematic elevator image and
+closing animation remain unchanged. All earlier assets remain in Prototype 7.
+
+SOUND
+Glass Echo is an original note arrangement made for RE:TRACE, based on the B
+sample selected by the user. The basement uses a 120-second variation cycle;
+the matching filtered file supplies the elevator mix. Surface Release is a
+72-second brighter D-major variation. Note events and renderer are included
+in audio_source. Instrument timbres use the TimGM6mb SoundFont through
+FluidSynth, not recordings made by the assistant. The bank and its licence
+and copyright notice are included in audio_source.
+
+All new device effects are original synthesized sounds, including the generic
+three-note descending shutdown. They do not sample a phone brand's sound.
+The indoor machinery layer is a tonal electrical hum, not filtered wind.
+outside_wind.wav retains the previous original synthesized outdoor ambience.
+The runtime uses only pygame; offline music-generation dependencies are not
+needed by players. Target-device listening remains part of the playtest.
+
+Bundled font licences are provided separately in this assets folder.
