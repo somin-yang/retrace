@@ -16,3 +16,6 @@ game/assets/*.mp3
 # OS
 .DS_Store
 Thumbs.db
+
+# Added only by the CI for the mobile build
+game/mobile.flag

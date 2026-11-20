@@ -94,6 +94,12 @@ GUIDE_DURATIONS = (2.35, 2.40, 2.85)
 
 LIFT_VIEW, LIFT_DISPLAY = pygame.Rect(40, 34, 880, 686), pygame.Rect(751, 68, 132, 48)
 
+# Mobile web build: the CI copies this folder and adds a "mobile.flag" file.
+# That build gets a wider canvas with a touch-control panel on each side.
+# The PC web build and desktop Python keep the original 960x720 screen.
+MOBILE = WEB and (ASSETS.parent / "mobile.flag").is_file()
+SIDE = 240 if MOBILE else 0
+
 
 def initialize(start_floor="B6"):
     global window, screen, clock, fonts, images, sprites, echoes, faded
@@ -102,7 +108,7 @@ def initialize(start_floor="B6"):
     pygame.init()
     if WEB:
         # In the browser the page scales the canvas; render at native size.
-        window = pygame.display.set_mode((WIDTH, HEIGHT))
+        window = pygame.display.set_mode((WIDTH + 2 * SIDE, HEIGHT))
     else:
         desktop = pygame.display.get_desktop_sizes()[0]
         scale = max(.5, min(1, (desktop[0] - 80) / WIDTH, (desktop[1] - 100) / HEIGHT))
@@ -149,6 +155,8 @@ def initialize(start_floor="B6"):
                        for name, filename in EFFECT_FILES.items()})
     setup_audio()
     records, ui_tick = [], 0
+    if SIDE:
+        build_controls()
     reset_help()
     build_floor(start_floor)
     set_scene("title")
@@ -737,6 +745,156 @@ def draw_lift():
         text(destination, cx, cy, 26, CYAN, "ko", True, ink_center=True)
 
 
+# ---------------------------------------------------------------------------
+# Touch / mouse controls for the web version.
+# Each on-screen button sends the same key the keyboard would, so the game
+# logic is unchanged. Several fingers are tracked at once (move + press E).
+# ---------------------------------------------------------------------------
+CONTROLS = []          # dicts: rect, key, label, sub
+PAD_CENTER, PAD_RADIUS, PAD_DEAD = (120, 470), 112, 20
+pointers = {}          # pointer id -> (x, y) in window pixels
+pointer_button = {}    # pointer id -> control currently pressed by that pointer
+last_orientation_check, portrait_mode = -999, False
+
+
+class VirtualKeys:
+    """Behaves like pygame.key.get_pressed(), plus keys held on screen."""
+    def __init__(self, real, held):
+        self.real, self.held = real, held
+
+    def __getitem__(self, key):
+        return bool(self.real[key]) or key in self.held
+
+
+def build_controls():
+    right = WIDTH + SIDE
+
+    def add(x, y, w, h, key, label, sub):
+        CONTROLS.append({"rect": pygame.Rect(x - w // 2, y - h // 2, w, h),
+                         "key": key, "label": label, "sub": sub})
+    add(120, 70, 200, 58, pygame.K_ESCAPE, "ESC", "설명서")
+    add(120, 140, 200, 58, pygame.K_h, "H", "힌트")
+    add(120, 210, 200, 58, pygame.K_q, "Q", "층 초기화")
+    add(right + 120, 300, 180, 120, pygame.K_r, "R", "기록 / 저장")
+    add(right + 120, 450, 180, 120, pygame.K_e, "E", "장치 사용")
+    add(right + 120, 618, 200, 92, pygame.K_SPACE, "SPACE", "확인 · 계속")
+
+
+def pad_direction(pos):
+    """Return held movement keys for a pointer on the round pad (8 directions)."""
+    dx, dy = pos[0] - PAD_CENTER[0], pos[1] - PAD_CENTER[1]
+    distance = math.hypot(dx, dy)
+    if distance < PAD_DEAD or distance > PAD_RADIUS * 1.35:
+        return set()
+    nx, ny = dx / distance, dy / distance
+    held = set()
+    if nx > .38: held.add(pygame.K_d)
+    if nx < -.38: held.add(pygame.K_a)
+    if ny > .38: held.add(pygame.K_s)
+    if ny < -.38: held.add(pygame.K_w)
+    return held
+
+
+def held_keys():
+    held = set()
+    for pointer, pos in pointers.items():
+        if pointer_button.get(pointer) == "pad":
+            held |= pad_direction(pos)
+    return held
+
+
+def pointer_down(pointer, pos):
+    """Returns True when the game should reset its frame timing (like handle_key)."""
+    pointers[pointer] = pos
+    for control in CONTROLS:
+        if control["rect"].collidepoint(pos):
+            pointer_button[pointer] = control["key"]
+            return handle_key(control["key"])
+    if math.dist(pos, PAD_CENTER) <= PAD_RADIUS * 1.15:
+        pointer_button[pointer] = "pad"
+        if manual_open:
+            # In the manual the pad pages (left/right) and scrolls (up/down).
+            direction = pad_direction(pos)
+            for game_key, manual_key_code in ((pygame.K_a, pygame.K_LEFT), (pygame.K_d, pygame.K_RIGHT),
+                                              (pygame.K_w, pygame.K_UP), (pygame.K_s, pygame.K_DOWN)):
+                if game_key in direction:
+                    handle_key(manual_key_code)
+        return False
+    pointer_button[pointer] = None
+    if SIDE <= pos[0] < SIDE + WIDTH:
+        return handle_click(pos)       # taps on the game picture act like clicks
+    return False
+
+
+def pointer_move(pointer, pos):
+    if pointer in pointers:
+        pointers[pointer] = pos
+
+
+def pointer_up(pointer):
+    pointers.pop(pointer, None)
+    pointer_button.pop(pointer, None)
+
+
+def check_portrait():
+    """Phones held upright show the game too small; ask the player to rotate."""
+    global last_orientation_check, portrait_mode
+    now = pygame.time.get_ticks()
+    if not WEB or now - last_orientation_check < 500:
+        return portrait_mode
+    last_orientation_check = now
+    try:
+        import platform  # pygbag exposes the browser window here
+        portrait_mode = platform.window.innerHeight > platform.window.innerWidth
+    except Exception:
+        portrait_mode = False
+    return portrait_mode
+
+
+def draw_controls():
+    if not SIDE:
+        return
+    for x in (0, WIDTH + SIDE):
+        pygame.draw.rect(window, (8, 11, 15), (x, 0, SIDE, HEIGHT))
+    pressed = set(pointer_button.values())
+    held = held_keys()
+    # Movement pad
+    pygame.draw.circle(window, (22, 30, 36), PAD_CENTER, PAD_RADIUS)
+    pygame.draw.circle(window, (69, 82, 89), PAD_CENTER, PAD_RADIUS, 2)
+    for key, (ax, ay) in ((pygame.K_w, (0, -1)), (pygame.K_s, (0, 1)),
+                          (pygame.K_a, (-1, 0)), (pygame.K_d, (1, 0))):
+        cx, cy = PAD_CENTER[0] + ax * 70, PAD_CENTER[1] + ay * 70
+        tip, base = (cx + ax * 18, cy + ay * 18), (cx - ax * 12, cy - ay * 12)
+        side = (-ay * 18, ax * 18)
+        color = CYAN if key in held else MUTED
+        pygame.draw.polygon(window, color, (tip, (base[0] + side[0], base[1] + side[1]),
+                                            (base[0] - side[0], base[1] - side[1])))
+    pygame.draw.circle(window, (45, 58, 66), PAD_CENTER, 26)
+    label = fonts["en"][20].render("W A S D", True, MUTED)
+    window.blit(label, label.get_rect(center=(PAD_CENTER[0], PAD_CENTER[1] + PAD_RADIUS + 26)))
+    # Buttons
+    for control in CONTROLS:
+        rect, active = control["rect"], control["key"] in pressed
+        pygame.draw.rect(window, (34, 48, 56) if active else (20, 28, 34), rect, border_radius=14)
+        pygame.draw.rect(window, CYAN if active else (69, 82, 89), rect, 2, border_radius=14)
+        big = rect.h >= 90
+        title = fonts["en"][38 if big else 26].render(control["label"], True, INK)
+        sub = fonts["ko"][18 if big else 16].render(control["sub"], True, MUTED)
+        if big:
+            window.blit(title, title.get_rect(center=(rect.centerx, rect.centery - 14)))
+            window.blit(sub, sub.get_rect(center=(rect.centerx, rect.centery + 26)))
+        else:
+            window.blit(title, title.get_rect(midleft=(rect.x + 18, rect.centery)))
+            window.blit(sub, sub.get_rect(midright=(rect.right - 16, rect.centery)))
+    if check_portrait():
+        veil = pygame.Surface(window.get_size(), pygame.SRCALPHA)
+        veil.fill((6, 9, 13, 235))
+        window.blit(veil, (0, 0))
+        for i, line in enumerate(("휴대폰을 가로로 돌려 주세요", "Rotate your phone to landscape")):
+            words = fonts["ko" if i == 0 else "en"][48 if i == 0 else 30].render(line, True, INK if i == 0 else MUTED)
+            window.blit(words, words.get_rect(center=(window.get_width() // 2, HEIGHT // 2 - 30 + i * 70)))
+
+
 async def main():
     initialize()
     running, accumulator = True, 0.0
@@ -744,22 +902,42 @@ async def main():
         elapsed = min(clock.tick(FPS) / 1000, .25)
         reset_frame = False
         for event in pygame.event.get():
+            touch_mouse = getattr(event, "touch", False)  # mouse events SDL copies from touches
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.KEYDOWN and not reset_frame:
                 reset_frame = handle_key(event.key)
-            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                reset_frame = handle_click(event.pos) or reset_frame
+            elif SIDE and event.type == pygame.FINGERDOWN:
+                w, h = window.get_size()
+                reset_frame = pointer_down(("finger", event.finger_id), (event.x * w, event.y * h)) or reset_frame
+            elif SIDE and event.type == pygame.FINGERMOTION:
+                w, h = window.get_size()
+                pointer_move(("finger", event.finger_id), (event.x * w, event.y * h))
+            elif SIDE and event.type == pygame.FINGERUP:
+                pointer_up(("finger", event.finger_id))
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and not touch_mouse:
+                if SIDE:
+                    reset_frame = pointer_down("mouse", event.pos) or reset_frame
+                else:
+                    reset_frame = handle_click(event.pos) or reset_frame
+            elif SIDE and event.type == pygame.MOUSEMOTION and not touch_mouse:
+                pointer_move("mouse", event.pos)
+            elif SIDE and event.type == pygame.MOUSEBUTTONUP and event.button == 1 and not touch_mouse:
+                pointer_up("mouse")
             elif event.type == pygame.MOUSEWHEEL and manual_open:
                 scroll_manual(-event.y * 52)
         if not running:
             break
-        focused = bool(pygame.key.get_focused())
+        # Phones never give the canvas keyboard focus, so the web build does not pause on it.
+        focused = True if WEB else bool(pygame.key.get_focused())
         set_audio_focus(focused)
         if reset_frame or not focused:
             accumulator = 0
         else:
-            accumulator = advance_simulation(elapsed, pygame.key.get_pressed(), accumulator)
+            keys = pygame.key.get_pressed()
+            if SIDE:
+                keys = VirtualKeys(keys, held_keys())
+            accumulator = advance_simulation(elapsed, keys, accumulator)
         draw_game()
         await asyncio.sleep(0)  # hand control back to the browser every frame
     if not WEB:
@@ -1156,6 +1334,7 @@ def draw_game():
     else:
         window.fill((6, 9, 13))
         window.blit(pygame.transform.smoothscale(screen, size), ((width - size[0]) // 2, (height - size[1]) // 2))
+    draw_controls()
     pygame.display.flip()
 
 

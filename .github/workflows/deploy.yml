@@ -1,5 +1,7 @@
-# Builds the pygame-ce game in game/ to WebAssembly with pygbag
-# and publishes it to GitHub Pages on every push to main.
+# Builds two web versions of the game in game/ with pygbag and publishes both:
+#   https://somin-yang.github.io/retrace/         PC browser (keyboard, 960x720)
+#   https://somin-yang.github.io/retrace/mobile/  phone (touch controls, 1440x720)
+# Both are built from the same source; the mobile build only adds game/mobile.flag.
 name: Build & Deploy to GitHub Pages
 
 on:
@@ -32,12 +34,26 @@ jobs:
       - name: Install pygbag
         run: pip install pygbag==0.9.3
 
-      - name: Build web version
+      - name: Build PC web version
         run: python -m pygbag --build --title "RE:TRACE" --width 960 --height 720 game
+
+      - name: Build mobile web version
+        run: |
+          mkdir -p mobile_build
+          cp -r game mobile_build/retrace
+          rm -rf mobile_build/retrace/build
+          touch mobile_build/retrace/mobile.flag
+          python -m pygbag --build --title "RE:TRACE Mobile" --width 1440 --height 720 mobile_build/retrace
+
+      - name: Assemble site
+        run: |
+          mkdir -p site/mobile
+          cp -r game/build/web/. site/
+          cp -r mobile_build/retrace/build/web/. site/mobile/
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: game/build/web
+          path: site
 
       - id: deployment
         uses: actions/deploy-pages@v4

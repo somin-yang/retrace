@@ -3,8 +3,10 @@
 A six-floor recording puzzle game (B6 → B1 → surface) by **Somin Yang**, written in
 Python with pygame-ce. The story and manual are in Korean.
 
-▶ **Play in your browser:** https://somin-yang.github.io/retrace/
-(click the screen once to start; sound begins after the first click)
+▶ **Play on a PC browser (keyboard):** https://somin-yang.github.io/retrace/
+▶ **Play on a phone (touch, hold it sideways):** https://somin-yang.github.io/retrace/mobile/
+
+Tap or click the screen once to start; sound begins after the first tap.
 
 ## Controls
 
@@ -42,6 +44,17 @@ docs/                 not needed to play
   ORIGINAL_README.md  README of the original desktop release
 .github/workflows/    builds the web version with pygbag and publishes to GitHub Pages
 ```
+
+## Versions
+
+| Version | Where | Screen | Controls |
+| --- | --- | --- | --- |
+| Desktop | `python main.py` on Mac/Windows | 960×720 window | keyboard |
+| PC web | `/retrace/` | 960×720 | keyboard |
+| Mobile web | `/retrace/mobile/` | 1440×720 (game + side panels) | on-screen pad and buttons |
+
+All three run the same `game/main.py`. The mobile web build is the same folder with an
+extra `mobile.flag` file, added automatically by the workflow — do not commit that file.
 
 ## How the web version works
 
